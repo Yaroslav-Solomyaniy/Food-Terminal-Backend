@@ -1,26 +1,43 @@
-import { Injectable } from '@nestjs/common';
-import { CreateAuthDto } from './dto/create-auth.dto';
-import { UpdateAuthDto } from './dto/update-auth.dto';
+import { BadRequestException, Injectable } from '@nestjs/common';
+import { SignUpDto } from './dto/signUp.dto';
+import { SignInDto } from './dto/signIn.dto';
+import { JwtService } from '@nestjs/jwt';
+import { PrismaService } from '../../prisma/prisma.service';
+import * as bcrypt from 'bcrypt';
 
 @Injectable()
 export class AuthService {
-  create(createAuthDto: CreateAuthDto) {
-    return 'This action adds a new auth';
+  constructor(private jwt: JwtService, private prisma: PrismaService) {}
+  async signUp(dto: SignUpDto) {
+    const { email, surName, lastName, phoneNumber, password, firstName } = dto;
+    const isUser = await this.prisma.user.findUnique({ where: { email } });
+    if (isUser) {
+      throw new BadRequestException('Користувач з таким e-mail вже існує');
+    }
+
+    const hashedPassword = await this.hashPassword(password);
+    await this.prisma.user.create({
+      data: {
+        email,
+        firstName,
+        surName,
+        lastName,
+        hashedPassword,
+        phoneNumber,
+      },
+    });
+    return { message: 'Ви успішно зареєструвались' };
   }
 
-  findAll() {
+  async signIn(dto: SignInDto) {
+    const { email, password } = dto;
     return `This action returns all auth`;
   }
 
-  findOne(id: number) {
-    return `This action returns a #${id} auth`;
+  async hashPassword(password: string) {
+    const saltOrRounds = 10;
+    return await bcrypt.hash(password, saltOrRounds);
   }
 
-  update(id: number, updateAuthDto: UpdateAuthDto) {
-    return `This action updates a #${id} auth`;
-  }
-
-  remove(id: number) {
-    return `This action removes a #${id} auth`;
-  }
+  async comparePassword(args: { pass: string; hash: string }) {}
 }
